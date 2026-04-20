@@ -26,29 +26,48 @@ export async function GET(request: Request) {
 
   console.log('[callback] Authenticated as:', user.email);
 
-  // Email whitelist check — only pre-seeded users can access
   const serviceClient = await createServiceClient();
-  const { data: existingUser, error: profileError } = await (serviceClient
+
+  // Look up existing user by email
+  const { data: existingUser } = await (serviceClient
     .from('users') as any)
     .select('id, is_active')
     .eq('email', user.email!)
-    .single() as { data: { id: string; is_active: boolean } | null; error: { message: string } | null };
+    .single() as { data: { id: string; is_active: boolean } | null; error: unknown };
 
-  console.log('[callback] Whitelist lookup:', { existingUser, profileError });
+  if (existingUser) {
+    // User exists — check if active
+    if (!existingUser.is_active) {
+      await supabase.auth.signOut();
+      return NextResponse.redirect(`${origin}/login?error=whitelist_failed`);
+    }
+    // Sync ID if it changed (first login after manual insert)
+    if (existingUser.id !== user.id) {
+      await (serviceClient.from('users') as any)
+        .update({ id: user.id })
+        .eq('email', user.email!);
+    }
+  } else {
+    // First time — auto-create with developer role
+    const fullName = user.user_metadata?.full_name
+      ?? user.user_metadata?.name
+      ?? user.email!.split('@')[0];
 
-  if (profileError || !existingUser || !existingUser.is_active) {
-    console.error('[callback] Whitelist check failed:', profileError?.message);
-    await supabase.auth.signOut();
-    return NextResponse.redirect(`${origin}/login?error=whitelist_failed`);
-  }
+    const { error: insertError } = await (serviceClient.from('users') as any).insert({
+      id:        user.id,
+      email:     user.email!,
+      full_name: fullName,
+      role:      'developer',
+      is_active: true,
+    });
 
-  // Sync public.users.id to match the real Google auth UUID (runs once per user)
-  if (existingUser.id !== user.id) {
-    console.log('[callback] Syncing user ID:', existingUser.id, '->', user.id);
-    await (serviceClient
-      .from('users') as any)
-      .update({ id: user.id })
-      .eq('email', user.email!);
+    if (insertError) {
+      console.error('[callback] Auto-create failed:', insertError.message);
+      await supabase.auth.signOut();
+      return NextResponse.redirect(`${origin}/login?error=create_failed`);
+    }
+
+    console.log('[callback] Auto-created user:', user.email);
   }
 
   return NextResponse.redirect(`${origin}/`);
