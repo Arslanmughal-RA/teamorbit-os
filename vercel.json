@@ -10,11 +10,11 @@
     },
     {
       "path": "/api/cron/sprint-end-evaluations",
-      "schedule": "0 * * * *"
+      "schedule": "30 4 * * *"
     },
     {
       "path": "/api/cron/overdue-check",
-      "schedule": "0 */2 * * *"
+      "schedule": "0 5 * * *"
     }
   ]
 }
