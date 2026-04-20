@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TeamOrbit OS — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0d1a; color: #e2e8f0;
+    display: flex; height: 100vh; overflow: hidden;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+  }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar { width: 210px; background: #0d1120; border-right: 1px solid rgba(255,255,255,.06); display: flex; flex-direction: column; flex-shrink: 0; }
+  .logo-wrap { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 18px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .logo-box { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; letter-spacing: -0.5px; box-shadow: 0 0 12px rgba(124,58,237,.5); }
+  .logo-text { font-weight: 800; font-size: 14px; color: #f1f5f9; letter-spacing: -0.03em; }
+  .nav { flex: 1; padding: 14px 10px; overflow-y: auto; }
+  .nav-section { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; padding: 10px 8px 5px; margin-top: 4px; }
+  .sec-purple { color: #a78bfa; }
+  .sec-cyan { color: #22d3ee; }
+  .sec-pink { color: #f472b6; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: #64748b; cursor: pointer; font-size: 13px; font-weight: 500; letter-spacing: -0.01em; transition: all .15s; margin-bottom: 1px; }
+  .nav-item:hover { background: rgba(255,255,255,.05); color: #cbd5e1; }
+  .nav-item.active { background: linear-gradient(90deg, rgba(124,58,237,.25), rgba(6,182,212,.1)); color: #e2e8f0; border-left: 2px solid #7c3aed; padding-left: 8px; }
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .nav-badge { margin-left: auto; background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 20px; }
+  .sidebar-user { border-top: 1px solid rgba(255,255,255,.06); padding: 14px; display: flex; align-items: center; gap: 10px; }
+  .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; box-shadow: 0 0 10px rgba(124,58,237,.4); }
+  .user-name { font-size: 12.5px; font-weight: 700; color: #e2e8f0; letter-spacing: -0.02em; }
+  .user-role { font-size: 10.5px; color: #475569; margin-top: 1px; font-weight: 500; }
+
+  /* ─── MAIN ─── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 56px; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; background: rgba(13,17,32,.8); backdrop-filter: blur(10px); }
+  .greeting { font-size: 13px; color: #64748b; font-weight: 400; letter-spacing: -0.01em; }
+  .greeting strong { color: #f1f5f9; font-weight: 700; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .tb-badge { background: rgba(124,58,237,.15); border: 1px solid rgba(124,58,237,.3); color: #a78bfa; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .tb-btn { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; position: relative; }
+  .notif-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; background: #ef4444; border-radius: 50%; border: 1px solid #0a0d1a; }
+  .user-chip { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); border-radius: 20px; padding: 4px 12px 4px 4px; cursor: pointer; }
+  .chip-avatar { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #7c3aed, #06b6d4); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+  .chip-name { font-size: 12px; font-weight: 500; color: #cbd5e1; }
+
+  /* ─── CONTENT ─── */
+  .content { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 10px; }
+
+  /* Page header */
+  .page-header { display: flex; align-items: center; justify-content: space-between; }
+  .page-title { font-size: 20px; font-weight: 800; color: #f8fafc; letter-spacing: -0.04em; }
+  .page-sub { font-size: 12px; color: #475569; margin-top: 3px; font-weight: 400; letter-spacing: -0.01em; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+  .btn-gradient { background: linear-gradient(135deg, #7c3aed, #06b6d4); color: #fff; box-shadow: 0 4px 15px rgba(124,58,237,.3); }
+  .btn-gradient:hover { box-shadow: 0 4px 20px rgba(124,58,237,.5); }
+  .btn-ghost { background: rgba(255,255,255,.05); color: #94a3b8; border: 1px solid rgba(255,255,255,.08); }
+
+  /* ─── GRADIENT HERO CARDS ─── */
+  .hero-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+  .hero-card { border-radius: 14px; padding: 18px; position: relative; overflow: hidden; }
+  .hero-card::before { content:''; position:absolute; top:-30px; right:-30px; width:100px; height:100px; border-radius:50%; opacity:.15; }
+  .hero-purple { background: linear-gradient(135deg, #4c1d95, #7c3aed); box-shadow: 0 8px 32px rgba(124,58,237,.25); }
+  .hero-purple::before { background: #fff; }
+  .hero-cyan { background: linear-gradient(135deg, #164e63, #06b6d4); box-shadow: 0 8px 32px rgba(6,182,212,.2); }
+  .hero-cyan::before { background: #fff; }
+  .hero-pink { background: linear-gradient(135deg, #831843, #ec4899); box-shadow: 0 8px 32px rgba(236,72,153,.2); }
+  .hero-green { background: linear-gradient(135deg, #14532d, #16a34a); box-shadow: 0 8px 32px rgba(22,163,74,.2); }
+  .hero-label { font-size: 10px; font-weight: 700; opacity: .8; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+  .hero-value { font-size: 34px; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -0.04em; }
+  .hero-value span { font-size: 14px; font-weight: 500; opacity: .75; margin-left: 3px; letter-spacing: 0; }
+  .hero-sub { font-size: 11.5px; opacity: .7; margin-top: 6px; font-weight: 400; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,255,255,.2); border-radius: 20px; padding: 3px 9px; font-size: 10.5px; font-weight: 600; color: #fff; margin-top: 8px; letter-spacing: -0.01em; }
+
+  /* ─── MIDDLE ROW ─── */
+  .mid-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  /* ─── CARD ─── */
+  .card { background: #0d1120; border: 1px solid rgba(255,255,255,.06); border-radius: 14px; overflow: hidden; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .card-title { font-size: 13px; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px; letter-spacing: -0.02em; }
+  .card-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .cb-red { background: rgba(239,68,68,.15); color: #f87171; }
+  .cb-yellow { background: rgba(245,158,11,.15); color: #fbbf24; }
+  .cb-green { background: rgba(34,197,94,.15); color: #4ade80; }
+  .cb-purple { background: rgba(124,58,237,.15); color: #a78bfa; }
+  .cb-cyan { background: rgba(6,182,212,.15); color: #22d3ee; }
+  .card-link { font-size: 11px; color: #7c3aed; cursor: pointer; }
+  .card-body { padding: 4px 0; }
+  .chart-wrap { padding: 12px 16px 6px; }
+
+  /* Pod cards */
+  .pod-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .pod-card { background: #0d1120; border: 1px solid rgba(255,255,255,.06); border-radius: 14px; padding: 16px; }
+  .pod-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .pod-name { font-size: 14px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.03em; }
+  .status-pill { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  .pill-green { background: rgba(34,197,94,.12); color: #4ade80; }
+  .pill-yellow { background: rgba(245,158,11,.12); color: #fbbf24; }
+  .pod-sprint { font-size: 11px; color: #475569; margin-bottom: 12px; }
+  .prog-label { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 5px; }
+  .prog-label strong { color: #e2e8f0; }
+  .prog-track { background: rgba(255,255,255,.07); border-radius: 20px; height: 5px; overflow: hidden; }
+  .prog-fill { height: 5px; border-radius: 20px; }
+  .fill-cyan { background: linear-gradient(90deg, #06b6d4, #7c3aed); box-shadow: 0 0 8px rgba(6,182,212,.4); }
+  .fill-yellow { background: linear-gradient(90deg, #f59e0b, #ef4444); box-shadow: 0 0 8px rgba(245,158,11,.3); }
+  .pod-pills { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .mini-pill { background: rgba(255,255,255,.05); border-radius: 5px; padding: 3px 8px; font-size: 11px; color: #64748b; }
+  .mini-pill b { color: #e2e8f0; }
+  .pod-avatars { display: flex; margin-top: 12px; }
+  .pod-av { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #0d1120; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; margin-right: -7px; }
+
+  /* Approval rows */
+  .appr-row { display: flex; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .appr-row:last-child { border: none; }
+  .appr-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .ai-purple { background: rgba(124,58,237,.2); }
+  .ai-cyan { background: rgba(6,182,212,.2); }
+  .ai-pink { background: rgba(236,72,153,.2); }
+  .appr-info { flex: 1; min-width: 0; }
+  .appr-title { font-size: 12.5px; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.02em; }
+  .appr-meta { font-size: 11px; color: #475569; margin-top: 2px; font-weight: 400; }
+  .appr-time { font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+  .time-warn { color: #fbbf24; }
+  .time-urgent { color: #f87171; }
+  .appr-btns { display: flex; gap: 5px; }
+  .appr-btn { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; border: none; cursor: pointer; }
+  .ab-approve { background: rgba(34,197,94,.15); color: #4ade80; }
+  .ab-view { background: rgba(255,255,255,.06); color: #94a3b8; }
+
+  /* Risk rows */
+  .risk-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 18px; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .risk-row:last-child { border: none; }
+  .risk-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .rd-red { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+  .rd-yellow { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+  .rd-purple { background: #a78bfa; box-shadow: 0 0 6px #a78bfa; }
+  .risk-text .rt { font-size: 12.5px; color: #e2e8f0; font-weight: 600; letter-spacing: -0.02em; }
+  .risk-text .rs { font-size: 11px; color: #475569; margin-top: 2px; font-weight: 400; }
+  .risk-pill { margin-left: auto; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-wrap">
+    <div class="logo-box">TO</div>
+    <span class="logo-text">TeamOrbit OS</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-section sec-purple">Overview</div>
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Sprints
+    </div>
+    <div class="nav-section sec-cyan">Work</div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      My Tasks
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Approvals
+      <span class="nav-badge">4</span>
+    </div>
+    <div class="nav-section sec-pink">Studio</div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h20M6 20V10l6-6 6 6v10"/></svg>
+      Pods
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Team
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Evaluations
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Settings
+    </div>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">MA</div>
+    <div>
+      <div class="user-name">Muhammad Arslan</div>
+      <div class="user-role">Studio Lead</div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <span class="greeting">Good morning, <strong>Muhammad</strong> &nbsp;·&nbsp; Thursday, 17 Apr 2026</span>
+    </div>
+    <div class="topbar-right">
+      <div class="tb-badge">Sprint 12 · 6 days left</div>
+      <div class="tb-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-dot"></div>
+      </div>
+      <div class="user-chip">
+        <div class="chip-avatar">MA</div>
+        <span class="chip-name">Muhammad</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <div class="page-title">Studio Dashboard</div>
+        <div class="page-sub">Real-time overview · 13 team members · 3 pods</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost">View Evaluations</button>
+        <button class="btn btn-gradient">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Sprint
+        </button>
+      </div>
+    </div>
+
+    <!-- Hero stat cards -->
+    <div class="hero-row">
+      <div class="hero-card hero-purple">
+        <div class="hero-label">Approvals Pending</div>
+        <div class="hero-value">4 <span>tasks</span></div>
+        <div class="hero-sub">Waiting on your review</div>
+        <div class="hero-badge">⚡ Needs action</div>
+      </div>
+      <div class="hero-card hero-cyan">
+        <div class="hero-label">Sprint Velocity</div>
+        <div class="hero-value">24 <span>done</span></div>
+        <div class="hero-sub">Out of 35 total this sprint</div>
+        <div class="hero-badge">📈 69% complete</div>
+      </div>
+      <div class="hero-card hero-pink">
+        <div class="hero-label">Overdue Tasks</div>
+        <div class="hero-value">3 <span>tasks</span></div>
+        <div class="hero-sub">Across 2 pods</div>
+        <div class="hero-badge">🔴 Needs attention</div>
+      </div>
+      <div class="hero-card hero-green">
+        <div class="hero-label">Completed Today</div>
+        <div class="hero-value">7 <span>tasks</span></div>
+        <div class="hero-sub">Studio-wide</div>
+        <div class="hero-badge">✓ On track</div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="mid-row">
+      <!-- Sprint completion chart -->
+      <div class="card" style="grid-column: span 2;">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Sprint Completion Over Time
+          </div>
+          <div style="display:flex;gap:14px;align-items:center;">
+            <span style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:20px;height:2px;background:linear-gradient(90deg,#7c3aed,#06b6d4);border-radius:2px;"></span>Tasks Done</span>
+            <span style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:20px;height:2px;background:rgba(236,72,153,.6);border-radius:2px;border-style:dashed;"></span>Target</span>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:160px;">
+          <canvas id="sprintChart"></canvas>
+        </div>
+      </div>
+      <!-- Task breakdown donut -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Tasks by Status
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:160px;display:flex;align-items:center;gap:16px;">
+          <div style="width:120px;height:120px;flex-shrink:0;">
+            <canvas id="donutChart"></canvas>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;align-items:center;gap:7px;font-size:11px;"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 5px #4ade80;"></span><span style="color:#94a3b8;">Done</span><span style="margin-left:auto;color:#e2e8f0;font-weight:600;">24</span></div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:11px;"><span style="width:8px;height:8px;border-radius:50%;background:#06b6d4;flex-shrink:0;box-shadow:0 0 5px #06b6d4;"></span><span style="color:#94a3b8;">In Progress</span><span style="margin-left:auto;color:#e2e8f0;font-weight:600;">7</span></div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:11px;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;box-shadow:0 0 5px #f59e0b;"></span><span style="color:#94a3b8;">Under Review</span><span style="margin-left:auto;color:#e2e8f0;font-weight:600;">4</span></div>
+            <div style="display:flex;align-items:center;gap:7px;font-size:11px;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;box-shadow:0 0 5px #ef4444;"></span><span style="color:#94a3b8;">Blocked</span><span style="margin-left:auto;color:#e2e8f0;font-weight:600;">3</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pod Performance -->
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">Pod Performance</div>
+      <div class="pod-grid">
+        <div class="pod-card">
+          <div class="pod-top">
+            <div class="pod-name">Pod 1</div>
+            <div class="status-pill pill-green"><span style="width:5px;height:5px;background:#4ade80;border-radius:50%;display:inline-block;box-shadow:0 0 5px #4ade80;"></span> On Track</div>
+          </div>
+          <div class="pod-sprint">Sprint 12 · Designer A + Dev A</div>
+          <div class="prog-label"><span>Completion</span><strong>72%</strong></div>
+          <div class="prog-track"><div class="prog-fill fill-cyan" style="width:72%"></div></div>
+          <div class="pod-pills">
+            <div class="mini-pill">✅ <b>8</b> done</div>
+            <div class="mini-pill">🔄 <b>3</b> active</div>
+            <div class="mini-pill">🚫 <b>0</b> blocked</div>
+          </div>
+          <div class="pod-avatars">
+            <div class="pod-av" style="background:linear-gradient(135deg,#7c3aed,#06b6d4);">DA</div>
+            <div class="pod-av" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);">A</div>
+          </div>
+        </div>
+        <div class="pod-card" style="border-color:rgba(245,158,11,.2);">
+          <div class="pod-top">
+            <div class="pod-name">Pod 2</div>
+            <div class="status-pill pill-yellow"><span style="width:5px;height:5px;background:#fbbf24;border-radius:50%;display:inline-block;box-shadow:0 0 5px #fbbf24;"></span> At Risk</div>
+          </div>
+          <div class="pod-sprint">Sprint 12 · Designer B + Dev B + Dev C</div>
+          <div class="prog-label"><span>Completion</span><strong>44%</strong></div>
+          <div class="prog-track"><div class="prog-fill fill-yellow" style="width:44%"></div></div>
+          <div class="pod-pills">
+            <div class="mini-pill">✅ <b>5</b> done</div>
+            <div class="mini-pill">🔄 <b>6</b> active</div>
+            <div class="mini-pill" style="background:rgba(245,158,11,.12);color:#fbbf24;">⛔ <b>2</b> blocked</div>
+          </div>
+          <div class="pod-avatars">
+            <div class="pod-av" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);">DB</div>
+            <div class="pod-av" style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);">B</div>
+            <div class="pod-av" style="background:linear-gradient(135deg,#06b6d4,#10b981);">C</div>
+          </div>
+        </div>
+        <div class="pod-card">
+          <div class="pod-top">
+            <div class="pod-name">Studio-Wide</div>
+            <div class="status-pill pill-green"><span style="width:5px;height:5px;background:#4ade80;border-radius:50%;display:inline-block;box-shadow:0 0 5px #4ade80;"></span> On Track</div>
+          </div>
+          <div class="pod-sprint">Sprint 12 · Producer, UA, ASO, Creative</div>
+          <div class="prog-label"><span>Completion</span><strong>61%</strong></div>
+          <div class="prog-track"><div class="prog-fill fill-cyan" style="width:61%"></div></div>
+          <div class="pod-pills">
+            <div class="mini-pill">✅ <b>11</b> done</div>
+            <div class="mini-pill">🔄 <b>7</b> active</div>
+            <div class="mini-pill">🚫 <b>1</b> blocked</div>
+          </div>
+          <div class="pod-avatars">
+            <div class="pod-av" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">P</div>
+            <div class="pod-av" style="background:linear-gradient(135deg,#10b981,#06b6d4);">UA</div>
+            <div class="pod-av" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);">AS</div>
+            <div class="pod-av" style="background:linear-gradient(135deg,#ec4899,#f43f5e);">CA</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom row: Approvals + Risks -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Approvals Waiting On You
+            <span class="card-badge cb-red">4</span>
+          </div>
+          <span class="card-link">View all →</span>
+        </div>
+        <div class="card-body">
+          <div class="appr-row">
+            <div class="appr-icon ai-purple">🔧</div>
+            <div class="appr-info"><div class="appr-title">SDK Integration — AppLovin v4.2</div><div class="appr-meta">Dev A · producer_task</div></div>
+            <span class="appr-time time-warn">2h ago</span>
+            <div class="appr-btns"><button class="appr-btn ab-approve">✓ Approve</button><button class="appr-btn ab-view">View</button></div>
+          </div>
+          <div class="appr-row">
+            <div class="appr-icon ai-cyan">📊</div>
+            <div class="appr-info"><div class="appr-title">UA Campaign Brief — Q2</div><div class="appr-meta">UA Manager · ua_task</div></div>
+            <span class="appr-time time-warn">5h ago</span>
+            <div class="appr-btns"><button class="appr-btn ab-approve">✓ Approve</button><button class="appr-btn ab-view">View</button></div>
+          </div>
+          <div class="appr-row">
+            <div class="appr-icon ai-pink">🎯</div>
+            <div class="appr-info"><div class="appr-title">ASO Keyword Research</div><div class="appr-meta">ASO Specialist · aso_task</div></div>
+            <span class="appr-time time-urgent">1d ago</span>
+            <div class="appr-btns"><button class="appr-btn ab-approve">✓ Approve</button><button class="appr-btn ab-view">View</button></div>
+          </div>
+          <div class="appr-row">
+            <div class="appr-icon ai-purple">📋</div>
+            <div class="appr-info"><div class="appr-title">Sprint 13 Plan Review</div><div class="appr-meta">Producer · producer_task</div></div>
+            <span class="appr-time time-urgent">2d ago</span>
+            <div class="appr-btns"><button class="appr-btn ab-approve">✓ Approve</button><button class="appr-btn ab-view">View</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Studio-Wide Risks
+            <span class="card-badge cb-red">5</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="risk-row"><div class="risk-dot rd-red"></div><div class="risk-text"><div class="rt">Game UI Rework — 2 days overdue</div><div class="rs">Designer B · Pod 2 · was due Apr 15</div></div><span class="risk-pill cb-red">Overdue</span></div>
+          <div class="risk-row"><div class="risk-dot rd-yellow"></div><div class="risk-text"><div class="rt">Blocked: Waiting on assets 26h</div><div class="rs">Dev C needs Lottie files from Designer B</div></div><span class="risk-pill cb-yellow">Blocked</span></div>
+          <div class="risk-row"><div class="risk-dot rd-yellow"></div><div class="risk-text"><div class="rt">Pod 2 at 44% — may miss sprint</div><div class="rs">6 tasks in-progress, 6 days remaining</div></div><span class="risk-pill cb-yellow">At Risk</span></div>
+          <div class="risk-row"><div class="risk-dot rd-red"></div><div class="risk-text"><div class="rt">Video Creative — 1 day overdue</div><div class="rs">Creative Artist · Studio-Wide pod</div></div><span class="risk-pill cb-red">Overdue</span></div>
+          <div class="risk-row"><div class="risk-dot rd-purple"></div><div class="risk-text"><div class="rt">Sprint 13 plan not submitted yet</div><div class="rs">Producer · sprint starts in 6 days</div></div><span class="risk-pill cb-purple">Pending</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// Sprint completion area chart
+const ctx1 = document.getElementById('sprintChart').getContext('2d');
+const grad1 = ctx1.createLinearGradient(0,0,0,120);
+grad1.addColorStop(0,'rgba(124,58,237,.4)');
+grad1.addColorStop(1,'rgba(6,182,212,.05)');
+new Chart(ctx1, {
+  type:'line',
+  data:{
+    labels:['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7','Day 8'],
+    datasets:[{
+      label:'Tasks Done',
+      data:[2,5,8,11,14,17,21,24],
+      borderColor:'url(#grad)',
+      borderWidth:2.5,
+      backgroundColor:grad1,
+      fill:true,
+      tension:.4,
+      pointRadius:3,
+      pointBackgroundColor:'#7c3aed',
+      pointBorderColor:'#0d1120',
+      pointBorderWidth:2,
+    },{
+      label:'Target',
+      data:[4,7,10,13,17,21,25,29],
+      borderColor:'rgba(236,72,153,.5)',
+      borderWidth:1.5,
+      borderDash:[5,4],
+      backgroundColor:'transparent',
+      fill:false,
+      tension:.4,
+      pointRadius:0,
+    }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2235',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'rgba(255,255,255,.1)',borderWidth:1}},
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#475569',font:{size:10}}},
+      y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#475569',font:{size:10}},min:0,max:35}
+    }
+  }
+});
+
+// Donut chart
+const ctx2 = document.getElementById('donutChart').getContext('2d');
+new Chart(ctx2,{
+  type:'doughnut',
+  data:{
+    datasets:[{
+      data:[24,7,4,3],
+      backgroundColor:['#4ade80','#06b6d4','#f59e0b','#ef4444'],
+      borderColor:'#0d1120',
+      borderWidth:3,
+      hoverOffset:4
+    }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    cutout:'72%',
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2235',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'rgba(255,255,255,.1)',borderWidth:1}}
+  }
+});
+</script>
+</body>
+</html>
