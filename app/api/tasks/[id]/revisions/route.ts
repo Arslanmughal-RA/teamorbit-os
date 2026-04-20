@@ -1,11 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient, getCurrentUser } from '@/lib/supabase/server';
 import { notifyRevisionRequested } from '@/lib/slack/notify';
 import type { RevisionReason, AccountabilityTag } from '@/types/database';
 
-type Params = { params: Promise<{ id: string }> };
 
-export async function POST(req: Request, { params }: Params) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
@@ -92,7 +91,7 @@ export async function POST(req: Request, { params }: Params) {
   return NextResponse.json({ data: revision, error: null }, { status: 201 });
 }
 
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });

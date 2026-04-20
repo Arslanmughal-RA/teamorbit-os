@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 import { TASK_STATUS_LABELS } from '@/lib/constants';
 import type { TaskStatus } from '@/types/database';
@@ -16,9 +16,8 @@ export const KANBAN_COLUMNS: TaskStatus[] = [
   'done',
 ];
 
-type Params = { params: Promise<{ id: string }> };
 
-export async function GET(req: Request, { params }: Params) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
