@@ -3,9 +3,10 @@ import { createClient, createServiceClient, getCurrentUser } from '@/lib/supabas
 import { APPROVAL_MATRIX } from '@/lib/constants';
 import type { TaskType } from '@/types/database';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
@@ -13,7 +14,7 @@ export async function GET(_req: Request, { params }: Params) {
 
   const { data: task, error } = await (supabase.from('tasks') as any)
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (error || !task) {
@@ -41,15 +42,15 @@ export async function GET(_req: Request, { params }: Params) {
       : Promise.resolve({ data: null }),
     (supabase.from('task_status_history') as any)
       .select('*, changed_by_user:users!task_status_history_changed_by_fkey(id, full_name)')
-      .eq('task_id', params.id)
+      .eq('task_id', id)
       .order('changed_at', { ascending: true }),
     (supabase.from('revisions') as any)
       .select('*, requester:users!revisions_requested_by_fkey(id, full_name)')
-      .eq('task_id', params.id)
+      .eq('task_id', id)
       .order('revision_number', { ascending: true }),
     (supabase.from('technical_notes') as any)
       .select('*, author:users!technical_notes_author_id_fkey(id, full_name)')
-      .eq('task_id', params.id)
+      .eq('task_id', id)
       .order('created_at', { ascending: true }),
   ]);
 
@@ -70,12 +71,13 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
   const supabase = await createClient();
   const { data: existing } = await (supabase.from('tasks') as any)
-    .select('*').eq('id', params.id).single();
+    .select('*').eq('id', id).single();
 
   if (!existing) return NextResponse.json({ data: null, error: { message: 'Task not found', code: 'NOT_FOUND' } }, { status: 404 });
 
@@ -113,7 +115,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const service = await createServiceClient();
   const { data: updated, error } = await (service.from('tasks') as any)
-    .update(updates).eq('id', params.id).select().single();
+    .update(updates).eq('id', id).select().single();
 
   if (error) return NextResponse.json({ data: null, error: { message: error.message, code: 'DB_ERROR' } }, { status: 500 });
 
@@ -121,6 +123,7 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
@@ -131,7 +134,7 @@ export async function DELETE(_req: Request, { params }: Params) {
 
   const supabase = await createClient();
   const { data: existing } = await (supabase.from('tasks') as any)
-    .select('status').eq('id', params.id).single();
+    .select('status').eq('id', id).single();
 
   if (!existing) return NextResponse.json({ data: null, error: { message: 'Task not found', code: 'NOT_FOUND' } }, { status: 404 });
 
@@ -140,7 +143,7 @@ export async function DELETE(_req: Request, { params }: Params) {
   }
 
   const service = await createServiceClient();
-  await (service.from('tasks') as any).delete().eq('id', params.id);
+  await (service.from('tasks') as any).delete().eq('id', id);
 
-  return NextResponse.json({ data: { id: params.id }, error: null });
+  return NextResponse.json({ data: { id: id }, error: null });
 }

@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient, getCurrentUser } from '@/lib/supabase/server';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
+  const { id } = await params;
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
   const { data: sprint, error } = await (supabase.from('sprints') as any)
-    .select('*').eq('id', params.id).single();
+    .select('*').eq('id', id).single();
 
   if (error || !sprint) return NextResponse.json({ data: null, error: { message: 'Sprint not found', code: 'NOT_FOUND' } }, { status: 404 });
 
@@ -63,6 +64,7 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
   if (!['studio_lead', 'producer'].includes(currentUser.role)) {
@@ -76,7 +78,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
   // Fetch current sprint
   const { data: existing, error: fetchErr } = await (supabase.from('sprints') as any)
-    .select('*').eq('id', params.id).single();
+    .select('*').eq('id', id).single();
   if (fetchErr || !existing) return NextResponse.json({ data: null, error: { message: 'Sprint not found', code: 'NOT_FOUND' } }, { status: 404 });
 
   // Only allow editing planning sprints
@@ -97,15 +99,15 @@ export async function PATCH(req: Request, { params }: Params) {
   if (end_date !== undefined) updates.end_date = end_date;
 
   const { data: updated, error } = await (service.from('sprints') as any)
-    .update(updates).eq('id', params.id).select().single();
+    .update(updates).eq('id', id).select().single();
 
   if (error) return NextResponse.json({ data: null, error: { message: error.message, code: 'DB_ERROR' } }, { status: 500 });
 
   // Update pod links if provided
   if (pod_ids !== undefined) {
-    await (service.from('sprint_pods') as any).delete().eq('sprint_id', params.id);
+    await (service.from('sprint_pods') as any).delete().eq('sprint_id', id);
     if (pod_ids.length) {
-      const links = pod_ids.map((pod_id: string) => ({ sprint_id: params.id, pod_id }));
+      const links = pod_ids.map((pod_id: string) => ({ sprint_id: id, pod_id }));
       await (service.from('sprint_pods') as any).insert(links);
     }
   }
@@ -114,6 +116,7 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
   if (currentUser.role !== 'studio_lead') {
@@ -122,7 +125,7 @@ export async function DELETE(_req: Request, { params }: Params) {
 
   const supabase = await createClient();
   const { data: existing } = await (supabase.from('sprints') as any)
-    .select('status').eq('id', params.id).single();
+    .select('status').eq('id', id).single();
 
   if (!existing) return NextResponse.json({ data: null, error: { message: 'Sprint not found', code: 'NOT_FOUND' } }, { status: 404 });
   if (existing.status === 'active') {
@@ -130,7 +133,7 @@ export async function DELETE(_req: Request, { params }: Params) {
   }
 
   const service = await createServiceClient();
-  await (service.from('sprints') as any).update({ status: 'cancelled' }).eq('id', params.id);
+  await (service.from('sprints') as any).update({ status: 'cancelled' }).eq('id', id);
 
-  return NextResponse.json({ data: { id: params.id, status: 'cancelled' }, error: null });
+  return NextResponse.json({ data: { id: id, status: 'cancelled' }, error: null });
 }

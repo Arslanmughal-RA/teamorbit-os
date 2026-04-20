@@ -10,7 +10,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const { data: pod, error } = await supabase
     .from('pods')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single() as any;
 
   if (error || !pod) return NextResponse.json({ data: null, error: { message: 'Pod not found', code: 'NOT_FOUND' } }, { status: 404 });
@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const { data: memberRows } = await supabase
     .from('pod_members')
     .select('user_id')
-    .eq('pod_id', params.id);
+    .eq('pod_id', id);
 
   const userIds = (memberRows ?? []).map((m: any) => m.user_id);
   const { data: members } = userIds.length
@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const { data: sprintPods } = await supabase
     .from('sprint_pods')
     .select('sprint_id')
-    .eq('pod_id', params.id) as any;
+    .eq('pod_id', id) as any;
 
   const sprintIds = (sprintPods ?? []).map((sp: any) => sp.sprint_id);
   let activeSprint = null;

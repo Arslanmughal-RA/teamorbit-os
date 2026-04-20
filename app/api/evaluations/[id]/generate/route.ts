@@ -4,9 +4,10 @@ import { calculateMetrics } from '@/lib/evaluations/calculate-metrics';
 import { generateEvaluationReport } from '@/lib/evaluations/generate-report';
 import type { UserRole } from '@/types/database';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
@@ -24,7 +25,7 @@ export async function POST(_req: Request, { params }: Params) {
       user:users!evaluations_user_id_fkey(id, full_name, role),
       sprint:sprints!evaluations_sprint_id_fkey(id, name, start_date, end_date)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (evalErr || !evaluation) {
@@ -103,7 +104,7 @@ export async function POST(_req: Request, { params }: Params) {
 
   const { data: updated, error: saveErr } = await (service.from('evaluations') as any)
     .update(updates)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single();
 

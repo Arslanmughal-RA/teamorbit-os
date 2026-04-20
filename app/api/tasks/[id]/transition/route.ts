@@ -4,9 +4,10 @@ import { ALLOWED_TRANSITIONS, APPROVAL_MATRIX } from '@/lib/constants';
 import { notifySubmittedForReview, notifyTaskApproved } from '@/lib/slack/notify';
 import type { TaskStatus, TaskType } from '@/types/database';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
@@ -19,7 +20,7 @@ export async function POST(req: Request, { params }: Params) {
 
   const supabase = await createClient();
   const { data: task } = await (supabase.from('tasks') as any)
-    .select('*').eq('id', params.id).single();
+    .select('*').eq('id', id).single();
 
   if (!task) return NextResponse.json({ data: null, error: { message: 'Task not found', code: 'NOT_FOUND' } }, { status: 404 });
 
@@ -75,7 +76,7 @@ export async function POST(req: Request, { params }: Params) {
 
   const { data: updated, error } = await (service.from('tasks') as any)
     .update({ status: to_status, ...timestamps })
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single();
 
@@ -83,7 +84,7 @@ export async function POST(req: Request, { params }: Params) {
 
   // Record history
   await (service.from('task_status_history') as any).insert({
-    task_id: params.id,
+    task_id: id,
     from_status: currentStatus,
     to_status,
     changed_by: currentUser.id,

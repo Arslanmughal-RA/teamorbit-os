@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient, getCurrentUser } from '@/lib/supabase/server';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
   const supabase = await createClient();
   const { data: task } = await (supabase.from('tasks') as any)
-    .select('id, assigned_to, created_by').eq('id', params.id).single();
+    .select('id, assigned_to, created_by').eq('id', id).single();
 
   if (!task) return NextResponse.json({ data: null, error: { message: 'Task not found', code: 'NOT_FOUND' } }, { status: 404 });
 
@@ -29,7 +30,7 @@ export async function POST(req: Request, { params }: Params) {
   const service = await createServiceClient();
   const { data, error } = await (service.from('technical_notes') as any)
     .insert({
-      task_id: params.id,
+      task_id: id,
       author_id: currentUser.id,
       note: note.trim(),
       is_blocking,
@@ -43,13 +44,14 @@ export async function POST(req: Request, { params }: Params) {
 }
 
 export async function GET(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
   const supabase = await createClient();
   const { data, error } = await (supabase.from('technical_notes') as any)
     .select('*, author:users!technical_notes_author_id_fkey(id, full_name)')
-    .eq('task_id', params.id)
+    .eq('task_id', id)
     .order('created_at', { ascending: true });
 
   if (error) return NextResponse.json({ data: null, error: { message: error.message, code: 'DB_ERROR' } }, { status: 500 });

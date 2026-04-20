@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient, getCurrentUser } from '@/lib/supabase/server';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
@@ -15,7 +16,7 @@ export async function GET(_req: Request, { params }: Params) {
       sprint:sprints!evaluations_sprint_id_fkey(id, name, start_date, end_date, status),
       reviewer:users!evaluations_reviewed_by_fkey(id, full_name)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (error || !evaluation) {
@@ -31,6 +32,7 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
@@ -58,7 +60,7 @@ export async function PATCH(req: Request, { params }: Params) {
   const service = await createServiceClient();
   const { data, error } = await (service.from('evaluations') as any)
     .update(updates)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single();
 

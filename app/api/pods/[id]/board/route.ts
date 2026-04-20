@@ -16,9 +16,10 @@ export const KANBAN_COLUMNS: TaskStatus[] = [
   'done',
 ];
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function GET(req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
@@ -28,7 +29,7 @@ export async function GET(req: Request, { params }: Params) {
 
   // Get pod
   const { data: pod } = await (supabase.from('pods') as any)
-    .select('id, name').eq('id', params.id).single();
+    .select('id, name').eq('id', id).single();
   if (!pod) return NextResponse.json({ data: null, error: { message: 'Pod not found', code: 'NOT_FOUND' } }, { status: 404 });
 
   // Resolve sprint to use
@@ -38,7 +39,7 @@ export async function GET(req: Request, { params }: Params) {
   if (!sprintId) {
     // Find active sprint for this pod
     const { data: sprintPods } = await (supabase.from('sprint_pods') as any)
-      .select('sprint_id').eq('pod_id', params.id);
+      .select('sprint_id').eq('pod_id', id);
     const ids = (sprintPods ?? []).map((sp: any) => sp.sprint_id);
     if (ids.length) {
       const { data: sprints } = await (supabase.from('sprints') as any)
@@ -58,7 +59,7 @@ export async function GET(req: Request, { params }: Params) {
     const { data } = await (supabase.from('tasks') as any)
       .select('id, title, status, task_type, priority, deadline, revision_count, assigned_to, eta_hours, tags, work_link')
       .eq('sprint_id', sprintId)
-      .eq('pod_id', params.id)
+      .eq('pod_id', id)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: true });
     tasks = data ?? [];
@@ -66,7 +67,7 @@ export async function GET(req: Request, { params }: Params) {
     // No active sprint — show backlog tasks for this pod
     const { data } = await (supabase.from('tasks') as any)
       .select('id, title, status, task_type, priority, deadline, revision_count, assigned_to, eta_hours, tags, work_link')
-      .eq('pod_id', params.id)
+      .eq('pod_id', id)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: true });
     tasks = data ?? [];

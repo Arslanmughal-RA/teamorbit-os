@@ -3,9 +3,10 @@ import { createClient, createServiceClient, getCurrentUser } from '@/lib/supabas
 import { notifyRevisionRequested } from '@/lib/slack/notify';
 import type { RevisionReason, AccountabilityTag } from '@/types/database';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function POST(req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
@@ -14,7 +15,7 @@ export async function POST(req: Request, { params }: Params) {
   const supabase = await createClient();
 
   const { data: task } = await (supabase.from('tasks') as any)
-    .select('*').eq('id', params.id).single();
+    .select('*').eq('id', id).single();
 
   if (!task) return NextResponse.json({ data: null, error: { message: 'Task not found', code: 'NOT_FOUND' } }, { status: 404 });
 
@@ -44,7 +45,7 @@ export async function POST(req: Request, { params }: Params) {
   // Insert revision record
   const { data: revision, error: revErr } = await (service.from('revisions') as any)
     .insert({
-      task_id: params.id,
+      task_id: id,
       requested_by: currentUser.id,
       reason,
       accountability,
@@ -63,11 +64,11 @@ export async function POST(req: Request, { params }: Params) {
       revision_count: newRevisionCount,
       attributable_revision_count: newAttributable,
     })
-    .eq('id', params.id);
+    .eq('id', id);
 
   // Status history
   await (service.from('task_status_history') as any).insert({
-    task_id: params.id,
+    task_id: id,
     from_status: task.status,
     to_status: 'revision_requested',
     changed_by: currentUser.id,
@@ -92,13 +93,14 @@ export async function POST(req: Request, { params }: Params) {
 }
 
 export async function GET(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
   const supabase = await createClient();
   const { data, error } = await (supabase.from('revisions') as any)
     .select('*, requester:users!revisions_requested_by_fkey(id, full_name, role)')
-    .eq('task_id', params.id)
+    .eq('task_id', id)
     .order('revision_number', { ascending: true });
 
   if (error) return NextResponse.json({ data: null, error: { message: error.message, code: 'DB_ERROR' } }, { status: 500 });

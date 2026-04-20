@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient, getCurrentUser } from '@/lib/supabase/server';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
   if (!['studio_lead', 'producer'].includes(currentUser.role)) {
@@ -13,7 +14,7 @@ export async function POST(_req: Request, { params }: Params) {
   const supabase = await createClient();
 
   const { data: sprint, error: fetchErr } = await (supabase.from('sprints') as any)
-    .select('*').eq('id', params.id).single();
+    .select('*').eq('id', id).single();
 
   if (fetchErr || !sprint) {
     return NextResponse.json({ data: null, error: { message: 'Sprint not found', code: 'NOT_FOUND' } }, { status: 404 });
@@ -29,7 +30,7 @@ export async function POST(_req: Request, { params }: Params) {
   // Ensure start_date is not in the future (optional soft warning — we allow it)
   // Check that sprint has at least one pod
   const { data: sprintPods } = await (supabase.from('sprint_pods') as any)
-    .select('pod_id').eq('sprint_id', params.id);
+    .select('pod_id').eq('sprint_id', id);
 
   if (!sprintPods?.length) {
     return NextResponse.json({
@@ -42,7 +43,7 @@ export async function POST(_req: Request, { params }: Params) {
 
   const { data: updated, error } = await (service.from('sprints') as any)
     .update({ status: 'active' })
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single();
 

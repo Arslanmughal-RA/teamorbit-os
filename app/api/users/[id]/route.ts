@@ -10,7 +10,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const { data: profile, error } = await supabase
     .from('users')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single() as any;
 
   if (error || !profile) return NextResponse.json({ data: null, error: { message: 'User not found', code: 'NOT_FOUND' } }, { status: 404 });
@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const { data: podMemberships } = await supabase
     .from('pod_members')
     .select('pod_id')
-    .eq('user_id', params.id) as any;
+    .eq('user_id', id) as any;
 
   const podIds = (podMemberships ?? []).map((pm: any) => pm.pod_id);
   const { data: pods } = podIds.length
@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const { count: activeTaskCount } = await supabase
     .from('tasks')
     .select('id', { count: 'exact', head: true })
-    .eq('assigned_to', params.id)
+    .eq('assigned_to', id)
     .not('status', 'in', '("done","approved","rejected_by_lead")') as any;
 
   return NextResponse.json({

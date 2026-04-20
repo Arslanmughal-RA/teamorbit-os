@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient, getCurrentUser } from '@/lib/supabase/server';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
+  const { id } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, { status: 401 });
 
   const supabase = await createClient();
 
   const { data: sprint, error: fetchErr } = await (supabase.from('sprints') as any)
-    .select('*').eq('id', params.id).single();
+    .select('*').eq('id', id).single();
 
   if (fetchErr || !sprint) {
     return NextResponse.json({ data: null, error: { message: 'Sprint not found', code: 'NOT_FOUND' } }, { status: 404 });
@@ -19,7 +20,7 @@ export async function GET(_req: Request, { params }: Params) {
   // Fetch all tasks for this sprint
   const { data: tasks } = await (supabase.from('tasks') as any)
     .select('id, status, task_type, assigned_to, eta_hours, deadline, done_at, revision_count, attributable_revision_count, created_at')
-    .eq('sprint_id', params.id);
+    .eq('sprint_id', id);
 
   const taskList: any[] = tasks ?? [];
 
@@ -79,7 +80,7 @@ export async function GET(_req: Request, { params }: Params) {
 
   return NextResponse.json({
     data: {
-      sprint_id: params.id,
+      sprint_id: id,
       sprint_name: sprint.name,
       sprint_status: sprint.status,
       total_tasks: total,
