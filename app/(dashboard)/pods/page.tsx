@@ -1,4 +1,6 @@
-import { getCurrentUser } from '@/lib/supabase/server';
+'use server';
+
+import { getCurrentUser, createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Users, ChevronRight, Layers } from 'lucide-react';
@@ -10,12 +12,30 @@ import { ROLE_LABELS } from '@/lib/constants';
 import type { UserRole } from '@/types/database';
 
 async function getPods() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/pods`, {
-    cache: 'no-store',
-    headers: { cookie: '' },
-  });
-  const json = await res.json();
-  return json.data ?? [];
+  const supabase = await createClient();
+
+  const { data: pods } = await (supabase.from('pods') as any)
+    .select('id, name, description, is_studio_wide')
+    .order('name');
+
+  if (!pods?.length) return [];
+
+  // Get members for each pod
+  const podIds = pods.map((p: any) => p.id);
+  const { data: memberRows } = await (supabase.from('pod_members') as any)
+    .select('pod_id, user:users!pod_members_user_id_fkey(id, full_name, role)')
+    .in('pod_id', podIds);
+
+  const membersByPod: Record<string, any[]> = {};
+  for (const row of memberRows ?? []) {
+    if (!membersByPod[row.pod_id]) membersByPod[row.pod_id] = [];
+    if (row.user) membersByPod[row.pod_id].push(row.user);
+  }
+
+  return pods.map((pod: any) => ({
+    ...pod,
+    members: membersByPod[pod.id] ?? [],
+  }));
 }
 
 export default async function PodsPage() {
@@ -62,7 +82,6 @@ export default async function PodsPage() {
                 <p className="text-xs text-muted-foreground">{pod.description}</p>
               )}
 
-              {/* Members */}
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Users className="w-3.5 h-3.5 text-muted-foreground" />
@@ -102,7 +121,7 @@ export default async function PodsPage() {
         {pods.length === 0 && (
           <div className="col-span-3 text-center py-16 text-muted-foreground">
             <Layers className="w-8 h-8 mx-auto mb-3 opacity-40" />
-            <p className="text-sm">No pods found. Run the seed script first.</p>
+            <p className="text-sm">No pods yet. Create pods in Supabase to get started.</p>
           </div>
         )}
       </div>
