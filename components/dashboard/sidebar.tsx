@@ -51,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Pods',
     href: '/pods',
     icon: Layers,
-    roles: ['studio_lead', 'producer'],
+    roles: 'all',
   },
   {
     label: 'Team',
