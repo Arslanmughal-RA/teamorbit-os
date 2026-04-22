@@ -1,16 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import {
-  LayoutDashboard,
-  Users,
-  Zap,
-  CheckSquare,
-  ClipboardList,
-  BarChart2,
-  Settings,
-  Layers,
+  LayoutDashboard, Users, Zap, CheckSquare,
+  ClipboardList, BarChart2, Settings, Layers, Eye, EyeOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { User, UserRole } from '@/types/database';
@@ -23,61 +18,28 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-    roles: 'all',
-  },
-  {
-    label: 'Sprints',
-    href: '/sprints',
-    icon: Zap,
-    roles: ['studio_lead', 'producer'],
-  },
-  {
-    label: 'My Tasks',
-    href: '/tasks',
-    icon: CheckSquare,
-    roles: 'all',
-  },
-  {
-    label: 'Approvals',
-    href: '/approvals',
-    icon: ClipboardList,
-    roles: ['studio_lead', 'producer', 'ua_manager', 'aso_specialist'],
-  },
-  {
-    label: 'Pods',
-    href: '/pods',
-    icon: Layers,
-    roles: 'all',
-  },
-  {
-    label: 'Team',
-    href: '/team',
-    icon: Users,
-    roles: ['studio_lead', 'producer'],
-  },
-  {
-    label: 'Evaluations',
-    href: '/evaluations',
-    icon: BarChart2,
-    roles: 'all',
-  },
-  {
-    label: 'Settings',
-    href: '/settings',
-    icon: Settings,
-    roles: ['studio_lead'],
-  },
+  { label: 'Dashboard',   href: '/dashboard',  icon: LayoutDashboard, roles: 'all' },
+  { label: 'Sprints',     href: '/sprints',     icon: Zap,             roles: ['studio_lead', 'producer'] },
+  { label: 'My Tasks',    href: '/tasks',       icon: CheckSquare,     roles: 'all' },
+  { label: 'Approvals',   href: '/approvals',   icon: ClipboardList,   roles: ['studio_lead', 'producer', 'ua_manager', 'aso_specialist'] },
+  { label: 'Pods',        href: '/pods',        icon: Layers,          roles: 'all' },
+  { label: 'Team',        href: '/team',        icon: Users,           roles: ['studio_lead', 'producer'] },
+  { label: 'Evaluations', href: '/evaluations', icon: BarChart2,       roles: 'all' },
+  { label: 'Settings',    href: '/settings',    icon: Settings,        roles: ['studio_lead'] },
 ];
 
+// What a developer sees
+const MEMBER_ROLE: UserRole = 'developer';
+
 export function Sidebar({ user }: { user: User }) {
-  const pathname = usePathname();
+  const pathname   = usePathname();
+  const isManager  = ['studio_lead', 'producer'].includes(user.role);
+  const [preview, setPreview] = useState(false);
+
+  const effectiveRole = (isManager && preview) ? MEMBER_ROLE : user.role;
 
   const visibleItems = NAV_ITEMS.filter((item) =>
-    item.roles === 'all' || item.roles.includes(user.role)
+    item.roles === 'all' || item.roles.includes(effectiveRole)
   );
 
   return (
@@ -92,14 +54,21 @@ export function Sidebar({ user }: { user: User }) {
         </div>
       </div>
 
+      {/* Member preview banner */}
+      {isManager && preview && (
+        <div className="mx-2 mt-2 px-2.5 py-1.5 rounded-md bg-orange-500/15 border border-orange-500/30 flex items-center gap-2">
+          <Eye className="w-3 h-3 text-orange-400 shrink-0" />
+          <span className="text-[10px] text-orange-400 font-medium">Member Preview</span>
+        </div>
+      )}
+
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {visibleItems.map((item) => {
           const Icon = item.icon;
-          const isActive =
-            item.href === '/dashboard'
-              ? pathname === '/dashboard'
-              : pathname.startsWith(item.href);
+          const isActive = item.href === '/dashboard'
+            ? pathname === '/dashboard'
+            : pathname.startsWith(item.href);
 
           return (
             <Link
@@ -120,7 +89,23 @@ export function Sidebar({ user }: { user: User }) {
       </nav>
 
       {/* User footer */}
-      <div className="border-t px-3 py-3 shrink-0">
+      <div className="border-t px-3 py-3 shrink-0 space-y-2">
+        {/* Member preview toggle — only for managers */}
+        {isManager && (
+          <button
+            onClick={() => setPreview(p => !p)}
+            className={cn(
+              'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors',
+              preview
+                ? 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/20'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            )}
+          >
+            {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {preview ? 'Exit Member Preview' : 'Preview as Member'}
+          </button>
+        )}
+
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold shrink-0">
             {user.full_name.charAt(0).toUpperCase()}
@@ -128,7 +113,7 @@ export function Sidebar({ user }: { user: User }) {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium truncate">{user.full_name}</p>
             <p className="text-xs text-muted-foreground capitalize truncate">
-              {user.role.replace(/_/g, ' ')}
+              {preview ? 'Previewing as Member' : user.role.replace(/_/g, ' ')}
             </p>
           </div>
         </div>
