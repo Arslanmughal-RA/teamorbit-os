@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { ROLE_LABELS, TASK_STATUS_LABELS, TASK_TYPE_LABELS, ALLOWED_TRANSITIONS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 import type { TaskStatus, TaskType, UserRole } from '@/types/database';
@@ -214,39 +215,47 @@ function KanbanBoard({ columns, me, onTransition }: {
   me: any;
   onTransition: (taskId: string, to: TaskStatus) => void;
 }) {
-  const [activeTask, setActiveTask] = useState<any>(null);
+  const [activeTask, setActiveTask]       = useState<any>(null);
+  const [validDropTargets, setValidDropTargets] = useState<TaskStatus[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  // Build a task lookup map
+  // Build lookup maps
   const taskMap: Record<string, any> = {};
   for (const col of columns) for (const t of col.tasks) taskMap[t.id] = t;
 
-  // Build a status lookup map (taskId -> current status)
   const taskStatus: Record<string, TaskStatus> = {};
   for (const col of columns) for (const t of col.tasks) taskStatus[t.id] = col.status;
 
   function onDragStart(event: DragStartEvent) {
-    setActiveTask(taskMap[event.active.id as string] ?? null);
+    const task = taskMap[event.active.id as string] ?? null;
+    setActiveTask(task);
+    if (task) {
+      const fromStatus = taskStatus[task.id];
+      setValidDropTargets(ALLOWED_TRANSITIONS[fromStatus] ?? []);
+    }
   }
 
   function onDragEnd(event: DragEndEvent) {
     setActiveTask(null);
+    setValidDropTargets([]);
     const { active, over } = event;
     if (!over) return;
 
-    const taskId    = active.id as string;
-    const toStatus  = over.id as TaskStatus;
+    const taskId     = active.id as string;
+    const toStatus   = over.id as TaskStatus;
     const fromStatus = taskStatus[taskId];
 
     if (!toStatus || toStatus === fromStatus) return;
 
-    // Check if this transition is allowed
     const allowed = ALLOWED_TRANSITIONS[fromStatus] ?? [];
     if (!allowed.includes(toStatus)) {
-      toast.error(`Cannot move from ${TASK_STATUS_LABELS[fromStatus]} to ${TASK_STATUS_LABELS[toStatus]}`);
+      const hint = allowed.length
+        ? `You can move this to: ${allowed.map(s => TASK_STATUS_LABELS[s]).join(', ')}`
+        : 'No transitions available from this status';
+      toast.error(hint);
       return;
     }
 
@@ -264,7 +273,14 @@ function KanbanBoard({ columns, me, onTransition }: {
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1">
         {columns.map((col: any) => (
-          <KanbanColumn key={col.status} column={col} me={me} onTransition={onTransition} isDragging={!!activeTask} />
+          <KanbanColumn
+            key={col.status}
+            column={col}
+            me={me}
+            onTransition={onTransition}
+            isDragging={!!activeTask}
+            isValidTarget={validDropTargets.includes(col.status)}
+          />
         ))}
       </div>
       <DragOverlay>
@@ -275,19 +291,25 @@ function KanbanBoard({ columns, me, onTransition }: {
 }
 
 /* ─── Droppable Column ───────────────────────────────────────── */
-function KanbanColumn({ column, me, onTransition, isDragging }: {
+function KanbanColumn({ column, me, onTransition, isDragging, isValidTarget }: {
   column: any; me: any;
   onTransition: (taskId: string, to: TaskStatus) => void;
   isDragging: boolean;
+  isValidTarget: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.status });
   const borderColor = COLUMN_COLORS[column.status as TaskStatus] ?? 'border-t-border';
 
+  const containerClass = cn(
+    'flex-none w-[280px] bg-card border rounded-xl flex flex-col border-t-2 transition-all',
+    borderColor,
+    isDragging && !isValidTarget && 'opacity-40',
+    isDragging && isValidTarget && 'ring-2 ring-primary/50 scale-[1.01]',
+    isOver && isValidTarget && 'ring-2 ring-primary bg-primary/5',
+  );
+
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex-none w-[280px] bg-card border rounded-xl flex flex-col border-t-2 transition-colors ${borderColor} ${isOver ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
-    >
+    <div ref={setNodeRef} className={containerClass}>
       <div className="px-3 py-2.5 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold">{column.label}</span>
@@ -295,13 +317,20 @@ function KanbanColumn({ column, me, onTransition, isDragging }: {
             {column.tasks.length}
           </span>
         </div>
-        {isOver && <span className="text-[10px] text-primary font-medium">Drop here</span>}
+        {isDragging && isValidTarget && (
+          <span className="text-[10px] text-primary font-medium animate-pulse">Drop here ↓</span>
+        )}
       </div>
 
       <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-320px)] min-h-[80px]">
         {column.tasks.length === 0 ? (
-          <div className={`py-6 text-center text-[11px] rounded-lg transition-colors ${isDragging ? 'border-2 border-dashed border-primary/20 text-primary/40' : 'text-muted-foreground opacity-60'}`}>
-            {isDragging ? 'Drop here' : 'Empty'}
+          <div className={cn(
+            'py-6 text-center text-[11px] rounded-lg transition-colors',
+            isDragging && isValidTarget
+              ? 'border-2 border-dashed border-primary/40 text-primary/60'
+              : 'text-muted-foreground opacity-60'
+          )}>
+            {isDragging && isValidTarget ? '↓ Drop here' : 'Empty'}
           </div>
         ) : (
           column.tasks.map((task: any) => (
