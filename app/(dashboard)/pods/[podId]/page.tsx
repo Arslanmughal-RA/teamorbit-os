@@ -233,8 +233,10 @@ function KanbanBoard({ columns, me, onTransition }: {
     const task = taskMap[event.active.id as string] ?? null;
     setActiveTask(task);
     if (task) {
-      const fromStatus = taskStatus[task.id];
-      setValidDropTargets(ALLOWED_TRANSITIONS[fromStatus] ?? []);
+      // All columns except the current one are valid targets
+      setValidDropTargets(
+        Object.keys(ALLOWED_TRANSITIONS).filter(s => s !== taskStatus[task.id]) as TaskStatus[]
+      );
     }
   }
 
@@ -249,15 +251,6 @@ function KanbanBoard({ columns, me, onTransition }: {
     const fromStatus = taskStatus[taskId];
 
     if (!toStatus || toStatus === fromStatus) return;
-
-    const allowed = ALLOWED_TRANSITIONS[fromStatus] ?? [];
-    if (!allowed.includes(toStatus)) {
-      const hint = allowed.length
-        ? `You can move this to: ${allowed.map(s => TASK_STATUS_LABELS[s]).join(', ')}`
-        : 'No transitions available from this status';
-      toast.error(hint);
-      return;
-    }
 
     onTransition(taskId, toStatus);
   }

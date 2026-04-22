@@ -88,12 +88,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       && new Date(t.deadline) < new Date(),
   }));
 
-  // Build columns
+  // Build columns — always show all columns
   const columns = KANBAN_COLUMNS.map(status => ({
     status,
     label: TASK_STATUS_LABELS[status],
     tasks: tasksEnriched.filter((t: any) => t.status === status),
-  })).filter(col => col.tasks.length > 0 || ['backlog', 'in_progress', 'done'].includes(col.status));
+  }));
 
   return NextResponse.json({
     data: {

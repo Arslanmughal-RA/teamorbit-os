@@ -24,43 +24,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!task) return NextResponse.json({ data: null, error: { message: 'Task not found', code: 'NOT_FOUND' } }, { status: 404 });
 
   const currentStatus = task.status as TaskStatus;
-  const allowed = ALLOWED_TRANSITIONS[currentStatus] ?? [];
-
-  if (!allowed.includes(to_status)) {
-    return NextResponse.json({
-      data: null,
-      error: {
-        message: `Cannot transition from '${currentStatus}' to '${to_status}'`,
-        code: 'INVALID_TRANSITION',
-        allowed_transitions: allowed,
-      },
-    }, { status: 400 });
-  }
-
-  // Permission checks per transition
-  const isManager = ['studio_lead', 'producer'].includes(currentUser.role);
+  const isManager  = ['studio_lead', 'producer'].includes(currentUser.role);
   const isAssignee = task.assigned_to === currentUser.id;
   const isApprover = task.approver_id === currentUser.id;
 
-  // Transitions the assignee can do
-  const assigneeTransitions: TaskStatus[] = [
-    'in_progress', 'submitted_for_review', 'waiting_for_assets',
-  ];
-  // Transitions only approver/manager can do
-  const approverTransitions: TaskStatus[] = [
-    'under_review', 'revision_requested', 'qa', 'approved', 'rejected_by_lead',
-  ];
-  // Done can only be set after approved
-  const managerTransitions: TaskStatus[] = ['done'];
-
-  if (approverTransitions.includes(to_status) && !isApprover && !isManager) {
-    return NextResponse.json({ data: null, error: { message: 'Only the approver or a manager can perform this transition', code: 'FORBIDDEN' } }, { status: 403 });
-  }
-  if (managerTransitions.includes(to_status) && !isManager) {
-    return NextResponse.json({ data: null, error: { message: 'Only a manager can mark tasks as done', code: 'FORBIDDEN' } }, { status: 403 });
-  }
-  if (assigneeTransitions.includes(to_status) && !isAssignee && !isManager) {
-    return NextResponse.json({ data: null, error: { message: 'Only the assignee or a manager can perform this transition', code: 'FORBIDDEN' } }, { status: 403 });
+  // Must be assignee, approver, or manager to transition
+  if (!isAssignee && !isApprover && !isManager) {
+    return NextResponse.json({ data: null, error: { message: 'You do not have permission to move this task', code: 'FORBIDDEN' } }, { status: 403 });
   }
 
   // Build timestamp fields to set
