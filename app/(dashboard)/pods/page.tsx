@@ -183,7 +183,7 @@ export default function PodsPage() {
                   </div>
                 </div>
                 <Link href={`/pods/${pod.id}`} className="block">
-                  <Button variant="outline" size="sm" className="w-full text-xs">View Kanban</Button>
+                  <Button variant="outline" size="sm" className="w-full text-xs">View Projects</Button>
                 </Link>
               </CardContent>
             </Card>

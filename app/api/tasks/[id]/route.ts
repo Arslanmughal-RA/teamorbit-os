@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const body = await req.json();
-  const allowedFields = ['title', 'description', 'sprint_id', 'pod_id', 'eta_hours', 'deadline', 'priority', 'tags', 'work_link', 'blocker_description'];
+  const allowedFields = ['title', 'description', 'sprint_id', 'pod_id', 'eta_hours', 'deadline', 'priority', 'tags', 'work_link', 'blocker_description', 'attachments'];
 
   // Managers can also reassign
   if (isManager) allowedFields.push('assigned_to', 'task_type');

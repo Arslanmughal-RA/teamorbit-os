@@ -56,7 +56,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   let tasks: any[] = [];
   if (sprintId) {
     const { data } = await (supabase.from('tasks') as any)
-      .select('id, title, status, task_type, priority, deadline, revision_count, assigned_to, eta_hours, tags, work_link')
+      .select('id, title, status, task_type, priority, deadline, revision_count, assigned_to, eta_hours, tags, work_link, attachments')
       .eq('sprint_id', sprintId)
       .eq('pod_id', id)
       .order('priority', { ascending: false })
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   } else {
     // No active sprint — show backlog tasks for this pod
     const { data } = await (supabase.from('tasks') as any)
-      .select('id, title, status, task_type, priority, deadline, revision_count, assigned_to, eta_hours, tags, work_link')
+      .select('id, title, status, task_type, priority, deadline, revision_count, assigned_to, eta_hours, tags, work_link, attachments')
       .eq('pod_id', id)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: true });

@@ -48,6 +48,7 @@ export async function POST(req: Request) {
   const {
     title, description, task_type, sprint_id, pod_id,
     assigned_to, eta_hours, deadline, priority = 0, tags, work_link,
+    status = 'backlog', attachments,
   } = body;
 
   if (!title?.trim()) {
@@ -89,7 +90,8 @@ export async function POST(req: Request) {
       priority,
       tags: tags ?? null,
       work_link: work_link ?? null,
-      status: 'backlog',
+      status: status || 'backlog',
+      attachments: attachments ?? [],
     })
     .select()
     .single();
@@ -100,7 +102,7 @@ export async function POST(req: Request) {
   await (service.from('task_status_history') as any).insert({
     task_id: task.id,
     from_status: null,
-    to_status: 'backlog',
+    to_status: status || 'backlog',
     changed_by: currentUser.id,
     notes: 'Task created',
   });

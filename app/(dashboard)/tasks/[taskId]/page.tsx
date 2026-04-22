@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Clock, User, Layers, Zap, Link2,
   Tag, AlertCircle, Loader2, History, FileText,
   RotateCcw, Edit, Plus, ChevronRight, Shield,
+  MessageSquare, Send, ImageIcon, X, AtSign,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -81,6 +82,8 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState<any>(null);
   const [me, setMe] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [comments, setComments] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
 
   // Dialog state
   const [transitionDialog, setTransitionDialog] = useState<TaskStatus | null>(null);
@@ -95,12 +98,16 @@ export default function TaskDetailPage() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const [taskRes, meRes] = await Promise.all([
+    const [taskRes, meRes, commentsRes, usersRes] = await Promise.all([
       fetch(`/api/tasks/${taskId}`).then(r => r.json()),
       fetch('/api/users/me').then(r => r.json()),
+      fetch(`/api/tasks/${taskId}/comments`).then(r => r.json()),
+      fetch('/api/users').then(r => r.json()),
     ]);
     if (taskRes.data) setTask(taskRes.data);
     if (meRes.data) setMe(meRes.data);
+    setComments(commentsRes.data ?? []);
+    setAllUsers(usersRes.data ?? []);
     setLoading(false);
   }, [taskId]);
 
@@ -532,6 +539,40 @@ export default function TaskDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Attachments */}
+          {task.attachments?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  Attachments ({task.attachments.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-2">
+                  {task.attachments.map((url: string, idx: number) => (
+                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={url}
+                        alt={`Attachment ${idx + 1}`}
+                        className="w-full aspect-square object-cover rounded-lg border border-border hover:opacity-80 transition-opacity"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comments */}
+          <CommentThread
+            taskId={taskId}
+            comments={comments}
+            me={me}
+            users={allUsers}
+            onNewComment={c => setComments(prev => [...prev, c])}
+          />
         </div>
       </div>
 
@@ -732,6 +773,181 @@ export default function TaskDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/* ─── Comment Thread ─────────────────────────────────────────── */
+function CommentThread({
+  taskId, comments, me, users, onNewComment,
+}: {
+  taskId: string;
+  comments: any[];
+  me: any;
+  users: any[];
+  onNewComment: (c: any) => void;
+}) {
+  const [content, setContent] = useState('');
+  const [mentions, setMentions] = useState<string[]>([]);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [showMentions, setShowMentions] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const mentionResults = mentionSearch
+    ? users.filter(u =>
+        u.full_name.toLowerCase().includes(mentionSearch.toLowerCase()) &&
+        u.id !== me?.id
+      ).slice(0, 6)
+    : [];
+
+  function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = e.target.value;
+    setContent(val);
+    // Detect @ trigger
+    const cursor = e.target.selectionStart ?? val.length;
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@(\w*)$/);
+    if (atMatch) {
+      setMentionSearch(atMatch[1]);
+      setShowMentions(true);
+    } else {
+      setShowMentions(false);
+      setMentionSearch('');
+    }
+  }
+
+  function insertMention(user: any) {
+    const cursor = textareaRef.current?.selectionStart ?? content.length;
+    const textBefore = content.slice(0, cursor);
+    const textAfter = content.slice(cursor);
+    const newText = textBefore.replace(/@\w*$/, `@${user.full_name} `) + textAfter;
+    setContent(newText);
+    setMentions(prev => prev.includes(user.id) ? prev : [...prev, user.id]);
+    setShowMentions(false);
+    setMentionSearch('');
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }
+
+  async function submit() {
+    if (!content.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content.trim(), mentions }),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error?.message ?? 'Failed to post comment'); return; }
+      onNewComment(json.data);
+      setContent('');
+      setMentions([]);
+    } finally { setSubmitting(false); }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      submit();
+    }
+    if (e.key === 'Escape') { setShowMentions(false); }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-primary" />
+          Comments
+          {comments.length > 0 && (
+            <span className="text-muted-foreground font-normal">({comments.length})</span>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Comment list */}
+        {comments.length > 0 ? (
+          <div className="space-y-3">
+            {comments.map((c: any) => {
+              const initials = (c.user?.full_name ?? '?')
+                .split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+              return (
+                <div key={c.id} className="flex gap-3">
+                  <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+                    <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-semibold">{c.user?.full_name ?? 'Unknown'}</span>
+                      <span className="text-[10px] text-muted-foreground">{formatDate(c.created_at)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed whitespace-pre-wrap">
+                      {c.content}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground text-center py-4 opacity-60">
+            No comments yet. Be the first to comment.
+          </p>
+        )}
+
+        {/* Composer */}
+        <div className="relative">
+          <div className="flex gap-2">
+            <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+              <AvatarFallback className="text-[10px]">
+                {(me?.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 relative">
+              <Textarea
+                ref={textareaRef}
+                placeholder="Add a comment… (@ to mention, Ctrl+Enter to send)"
+                value={content}
+                onChange={handleInput}
+                onKeyDown={handleKeyDown}
+                className="min-h-[70px] resize-none text-xs pr-10"
+              />
+              <button
+                type="button"
+                onClick={submit}
+                disabled={!content.trim() || submitting}
+                className="absolute bottom-2 right-2 text-primary hover:text-primary/80 transition-colors disabled:opacity-40"
+              >
+                {submitting
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Send className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* @mention dropdown */}
+          {showMentions && mentionResults.length > 0 && (
+            <div className="absolute z-50 left-9 mt-1 w-56 bg-popover border rounded-lg shadow-lg overflow-hidden">
+              {mentionResults.map(u => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onMouseDown={e => { e.preventDefault(); insertMention(u); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors text-left"
+                >
+                  <Avatar className="h-5 w-5 shrink-0">
+                    <AvatarFallback className="text-[8px]">
+                      {u.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium">{u.full_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
